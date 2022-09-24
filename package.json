@@ -1,0 +1,23 @@
+{
+  "name": "github-pr-stats",
+  "version": "1.0.0",
+  "description": "Just a little code to gather up some PR stats (prs/reviews/comments/etc.)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyanBard/github-pr-stats.git"
+  },
+  "author": "Ryan Bard <john.ryan.bard@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RyanBard/github-pr-stats/issues"
+  },
+  "homepage": "https://github.com/RyanBard/github-pr-stats#readme",
+  "dependencies": {
+    "axios": "^0.27.2"
+  }
+}

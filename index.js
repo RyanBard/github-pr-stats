@@ -30,27 +30,38 @@ function incComments(login) {
 async function getPulls(ownerRepo, start, end) {
     try {
         let resp
-        let page = 1
+        let prPage = 1
         let lastCreatedAt
         do {
             // https://www.npmjs.com/package/axios
             // https://docs.github.com/en/rest/pulls/pulls
-            resp = await instance.get(`/repos/healthbam/healthbam/pulls?state=closed&page=${page}`)
-            resp.data.forEach(async pr => {
+            resp = await instance.get(`/repos/healthbam/healthbam/pulls?state=closed&page=${prPage}`)
+            const p = resp.data.map(async pr => {
                 lastCreatedAt = new Date(pr.created_at)
                 if (start.getTime() <= lastCreatedAt.getTime() && end.getTime() >= lastCreatedAt.getTime()) {
                     incPulls(pr.user.login)
-                    const reviewResp = await instance.get(pr.review_comments_url)
-                    reviewResp.data.forEach(review => {
-                        incReviews(review.user.login)
-                    })
-                    const commentsResp = await instance.get(pr.comments_url)
-                    commentsResp.data.forEach(comment => {
-                        incComments(comment.user.login)
-                    })
+                    let reviewPage = 1
+                    let reviewResp
+                    do {
+                        reviewResp = await instance.get(`${pr.review_comments_url}?page=${reviewPage}`)
+                        reviewResp.data.forEach(review => {
+                            incReviews(review.user.login)
+                        })
+                        reviewPage += 1
+                    } while (reviewResp.data.length)
+                    let commentsPage = 1
+                    let commentsResp
+                    do {
+                        commentsResp = await instance.get(`${pr.comments_url}?page=${commentsPage}`)
+                        commentsResp.data.forEach(comment => {
+                            incComments(comment.user.login)
+                        })
+                        commentsPage += 1
+                    } while (commentsResp.data.length)
                 }
             })
-            page += 1
+            await Promise.all(p)
+            prPage += 1
         } while (resp.data.length && start.getTime() <= lastCreatedAt.getTime())
     } catch (err) {
         console.log('err: ', err)

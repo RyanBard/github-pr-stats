@@ -35,7 +35,7 @@ async function getPulls(ownerRepo, start, end) {
         do {
             // https://www.npmjs.com/package/axios
             // https://docs.github.com/en/rest/pulls/pulls
-            resp = await instance.get(`/repos/healthbam/healthbam/pulls?state=closed&page=${prPage}`)
+            resp = await instance.get(`/repos/${ownerRepo}/pulls?state=closed&page=${prPage}`)
             const p = resp.data.map(async pr => {
                 lastCreatedAt = new Date(pr.created_at)
                 if (start.getTime() <= lastCreatedAt.getTime() && end.getTime() >= lastCreatedAt.getTime()) {

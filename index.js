@@ -38,7 +38,7 @@ function incComments(login) {
 
 async function getPulls(ownerRepo, start, end) {
     try {
-        const max = 30
+        const perPage = 100
         let resp
         let prPage = 1
         let lastCreatedAt
@@ -46,7 +46,7 @@ async function getPulls(ownerRepo, start, end) {
         do {
             // https://www.npmjs.com/package/axios
             // https://docs.github.com/en/rest/pulls/pulls
-            resp = await instance.get(`/repos/${ownerRepo}/pulls?state=closed&page=${prPage}`)
+            resp = await instance.get(`/repos/${ownerRepo}/pulls?state=closed&page=${prPage}&per_page=${perPage}`)
             const p = resp.data.map(async pr => {
                 lastCreatedAt = new Date(pr.created_at)
                 if (start.getTime() <= lastCreatedAt.getTime() && end.getTime() >= lastCreatedAt.getTime()) {
@@ -55,29 +55,29 @@ async function getPulls(ownerRepo, start, end) {
                     let reviewResp
                     let reviewHasMore = true
                     do {
-                        reviewResp = await instance.get(`${pr.review_comments_url}?page=${reviewPage}`)
+                        reviewResp = await instance.get(`${pr.review_comments_url}?page=${reviewPage}&per_page=${perPage}`)
                         reviewResp.data.forEach(review => {
                             incReviews(review.user.login)
                         })
                         reviewPage += 1
-                        reviewHasMore = reviewResp.data.length === max
+                        reviewHasMore = reviewResp.data.length === perPage
                     } while (reviewHasMore)
                     let commentsPage = 1
                     let commentsResp
                     let commentsHasMore = true
                     do {
-                        commentsResp = await instance.get(`${pr.comments_url}?page=${commentsPage}`)
+                        commentsResp = await instance.get(`${pr.comments_url}?page=${commentsPage}&per_page=${perPage}`)
                         commentsResp.data.forEach(comment => {
                             incComments(comment.user.login)
                         })
                         commentsPage += 1
-                        commentsHasMore = commentsResp.data.length === max
+                        commentsHasMore = commentsResp.data.length === perPage
                     } while (commentsHasMore)
                 }
             })
             await Promise.all(p)
             prPage += 1
-            prHasMore = resp.data.length === max
+            prHasMore = resp.data.length === perPage
         } while (prHasMore && start.getTime() <= lastCreatedAt.getTime())
     } catch (err) {
         console.log('err: ', err)

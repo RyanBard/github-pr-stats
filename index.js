@@ -36,6 +36,8 @@ function incComments(login) {
     comments[login] = (comments[login] || 0) + 1
 }
 
+// Maybe look into using this instead: https://docs.github.com/en/rest/activity/events
+
 async function getPulls(ownerRepo, start, end) {
     try {
         const perPage = 100

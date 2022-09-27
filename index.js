@@ -2,7 +2,7 @@ const githubApiKey = process.env.GITHUB_API_KEY
 
 const axios = require('axios')
 
-const instance = axios.create({
+const baseInstance = axios.create({
     baseURL: 'https://api.github.com',
     timeout: 11000,
     headers: {
@@ -10,6 +10,15 @@ const instance = axios.create({
         'Authorization': `Bearer ${githubApiKey}`,
     },
 })
+
+let numCalls = 0
+
+const instance = {
+    get: function (...params) {
+        numCalls += 1
+        return baseInstance.get(...params);
+    }
+}
 
 const pulls = {}
 const reviews = {}
@@ -29,9 +38,11 @@ function incComments(login) {
 
 async function getPulls(ownerRepo, start, end) {
     try {
+        const max = 30
         let resp
         let prPage = 1
         let lastCreatedAt
+        let prHasMore = true
         do {
             // https://www.npmjs.com/package/axios
             // https://docs.github.com/en/rest/pulls/pulls
@@ -42,27 +53,32 @@ async function getPulls(ownerRepo, start, end) {
                     incPulls(pr.user.login)
                     let reviewPage = 1
                     let reviewResp
+                    let reviewHasMore = true
                     do {
                         reviewResp = await instance.get(`${pr.review_comments_url}?page=${reviewPage}`)
                         reviewResp.data.forEach(review => {
                             incReviews(review.user.login)
                         })
                         reviewPage += 1
-                    } while (reviewResp.data.length)
+                        reviewHasMore = reviewResp.data.length === max
+                    } while (reviewHasMore)
                     let commentsPage = 1
                     let commentsResp
+                    let commentsHasMore = true
                     do {
                         commentsResp = await instance.get(`${pr.comments_url}?page=${commentsPage}`)
                         commentsResp.data.forEach(comment => {
                             incComments(comment.user.login)
                         })
                         commentsPage += 1
-                    } while (commentsResp.data.length)
+                        commentsHasMore = commentsResp.data.length === max
+                    } while (commentsHasMore)
                 }
             })
             await Promise.all(p)
             prPage += 1
-        } while (resp.data.length && start.getTime() <= lastCreatedAt.getTime())
+            prHasMore = resp.data.length === max
+        } while (prHasMore && start.getTime() <= lastCreatedAt.getTime())
     } catch (err) {
         console.log('err: ', err)
     }
@@ -105,3 +121,4 @@ try {
 }
 
 getPulls(ownerRepo, start, end)
+    .then(ignored => console.log('numCalls: ', numCalls))

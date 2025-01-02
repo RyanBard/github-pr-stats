@@ -1,23 +1,12 @@
 const githubApiKey = process.env.GITHUB_API_KEY
 
-const axios = require('axios')
+const baseUrl = 'https://api.github.com'
 
-const baseInstance = axios.create({
-    baseURL: 'https://api.github.com',
-    timeout: 11000,
+const options = {
     headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${githubApiKey}`,
     },
-})
-
-let numCalls = 0
-
-const instance = {
-    get: function (...params) {
-        numCalls += 1
-        return baseInstance.get(...params);
-    }
 }
 
 const pulls = {}
@@ -46,40 +35,49 @@ async function getPulls(ownerRepo, start, end) {
         let lastCreatedAt
         let prHasMore = true
         do {
-            // https://www.npmjs.com/package/axios
             // https://docs.github.com/en/rest/pulls/pulls
-            resp = await instance.get(`/repos/${ownerRepo}/pulls?state=closed&page=${prPage}&per_page=${perPage}`)
-            const p = resp.data.map(async pr => {
+            resp = await fetch(`${baseUrl}/repos/${ownerRepo}/pulls?state=closed&page=${prPage}&per_page=${perPage}`, options)
+            const data = await resp.json()
+            if (resp.status > 299 || resp.status < 200) {
+                throw new Error(`Unexpected status from GET pulls request: %s`, resp.status)
+            }
+            const p = data.map(async pr => {
                 lastCreatedAt = new Date(pr.created_at)
                 if (start.getTime() <= lastCreatedAt.getTime() && end.getTime() >= lastCreatedAt.getTime()) {
                     incPulls(pr.user.login)
                     let reviewPage = 1
-                    let reviewResp
                     let reviewHasMore = true
                     do {
-                        reviewResp = await instance.get(`${pr.review_comments_url}?page=${reviewPage}&per_page=${perPage}`)
-                        reviewResp.data.forEach(review => {
+                        const reviewResp = await fetch(`${pr.review_comments_url}?page=${reviewPage}&per_page=${perPage}`, options)
+                        if (reviewResp.status > 299 || reviewResp.status < 200) {
+                            throw new Error(`Unexpected status from GET review request: %s`, reviewResp.status)
+                        }
+                        const reviewData = await reviewResp.json()
+                        reviewData.forEach(review => {
                             incReviews(review.user.login)
                         })
                         reviewPage += 1
-                        reviewHasMore = reviewResp.data.length === perPage
+                        reviewHasMore = reviewData.length === perPage
                     } while (reviewHasMore)
                     let commentsPage = 1
-                    let commentsResp
                     let commentsHasMore = true
                     do {
-                        commentsResp = await instance.get(`${pr.comments_url}?page=${commentsPage}&per_page=${perPage}`)
-                        commentsResp.data.forEach(comment => {
+                        const commentsResp = await fetch(`${pr.comments_url}?page=${commentsPage}&per_page=${perPage}`, options)
+                        if (commentsResp.status > 299 || commentsResp.status < 200) {
+                            throw new Error(`Unexpected status from GET comments request: %s`, reviewResp.status)
+                        }
+                        const commentsData = await commentsResp.json()
+                        commentsData.forEach(comment => {
                             incComments(comment.user.login)
                         })
                         commentsPage += 1
-                        commentsHasMore = commentsResp.data.length === perPage
+                        commentsHasMore = commentsData.length === perPage
                     } while (commentsHasMore)
                 }
             })
             await Promise.all(p)
             prPage += 1
-            prHasMore = resp.data.length === perPage
+            prHasMore = data.length === perPage
         } while (prHasMore && start.getTime() <= lastCreatedAt.getTime())
     } catch (err) {
         console.log('err: ', err)
@@ -122,5 +120,7 @@ try {
     process.exit(1)
 }
 
+console.log('Starting...\n')
+
 getPulls(ownerRepo, start, end)
-    .then(ignored => console.log('numCalls: ', numCalls))
+    .then(ignored => console.log('\nDone'), err => console.log('error: %O', err))

@@ -16,8 +16,5 @@
   "bugs": {
     "url": "https://github.com/RyanBard/github-pr-stats/issues"
   },
-  "homepage": "https://github.com/RyanBard/github-pr-stats#readme",
-  "dependencies": {
-    "axios": "^0.28.0"
-  }
+  "homepage": "https://github.com/RyanBard/github-pr-stats#readme"
 }
